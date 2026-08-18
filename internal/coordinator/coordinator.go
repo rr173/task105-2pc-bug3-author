@@ -407,20 +407,19 @@ func (c *Coordinator) driveSecondPhase(ctx context.Context, t store.TxnRow, part
 			continue
 		}
 		res, ok := c.resources[parts[i].Resource]
+		if err := requireResourceHandle(parts[i].Resource, res, ok); err != nil {
+			return "", nil, err
+		}
 		var final string
 		if wantCommit {
 			final = store.FinalCommitted
-			if ok {
-				if err := res.Commit(ctx); err != nil {
-					return "", nil, fmt.Errorf("commit %s: %w", parts[i].Resource, err)
-				}
+			if err := res.Commit(ctx); err != nil {
+				return "", nil, fmt.Errorf("commit %s: %w", parts[i].Resource, err)
 			}
 		} else {
 			final = store.FinalAborted
-			if ok {
-				if err := res.Abort(ctx); err != nil {
-					return "", nil, fmt.Errorf("abort %s: %w", parts[i].Resource, err)
-				}
+			if err := res.Abort(ctx); err != nil {
+				return "", nil, fmt.Errorf("abort %s: %w", parts[i].Resource, err)
 			}
 		}
 		if err := c.store.FinalizeParticipant(ctx, t.TxnID, parts[i].Resource, final, now); err != nil {
